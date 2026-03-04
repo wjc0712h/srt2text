@@ -1,43 +1,104 @@
 (() => {
-  const dropZone    = document.getElementById('dropZone');
-  const fileInput   = document.getElementById('fileInput');
-  const fileList    = document.getElementById('fileList');
-  const emptyState  = document.getElementById('emptyState');
+  const dropZone       = document.getElementById('dropZone');
+  const fileInput      = document.getElementById('fileInput');
+  const fileList       = document.getElementById('fileList');
+  const emptyState     = document.getElementById('emptyState');
   const fileCountBadge = document.getElementById('fileCountBadge');
-  const outputPanel = document.getElementById('outputPanel');
-  const emptyContent= document.getElementById('emptyContent');
-  const outputText  = document.getElementById('outputText');
-  const fileName    = document.getElementById('fileName');
-  const lineCount   = document.getElementById('lineCount');
-  const charCount   = document.getElementById('charCount');
-  const copyBtn     = document.getElementById('copyBtn');
-  const downloadBtn = document.getElementById('downloadBtn');
-  const toast       = document.getElementById('toast');
+  const outputPanel    = document.getElementById('outputPanel');
+  const emptyContent   = document.getElementById('emptyContent');
+  const outputText     = document.getElementById('outputText');
+  const fileName       = document.getElementById('fileName');
+  const lineCount      = document.getElementById('lineCount');
+  const charCount      = document.getElementById('charCount');
+  const copyBtn        = document.getElementById('copyBtn');
+  const downloadBtn    = document.getElementById('downloadBtn');
+  const toast          = document.getElementById('toast');
 
-  // State
-  const files = []; // { id, name, baseName, text }
-  let activeId = null;
+  // State: files hold parsed lines [{text, timestamp}]
+  const files = [];
+  let activeId  = null;
   let idCounter = 0;
 
-  // ── SRT Parser ─────────────────────────────────────────────
+  // ── SRT Parser ──────────────────────────────────────────────
   function parseSRT(raw) {
     const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     const blocks = normalized.split(/\n{2,}/);
-    const lines = [];
+    const result = [];
     for (const block of blocks) {
       const bLines = block.trim().split('\n');
-      if (bLines.length < 1) continue;
-      const isSeq  = /^\d+$/.test(bLines[0].trim());
-      const isTime = /\d{2}:\d{2}:\d{2}[,\.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,\.]\d{3}/.test(bLines[1] || '');
+      if (!bLines.length) continue;
+      const isSeq   = /^\d+$/.test(bLines[0].trim());
+      const tsLine  = bLines[isSeq ? 1 : 0] || '';
+      const tsMatch = tsLine.match(/(\d{2}:\d{2}:\d{2})[,\.]\d{3}\s*-->/);
+      const isTime  = !!tsMatch;
+      const timestamp = tsMatch ? tsMatch[1] : '';
       let start = 0;
       if (isSeq)  start = 1;
-      if (isTime) start = 2;
+      if (isTime) start = isSeq ? 2 : 1;
       const text = bLines.slice(start)
         .map(l => l.replace(/<[^>]*>/g, '').trim())
         .filter(Boolean);
-      if (text.length) lines.push(text.join(' '));
+      if (text.length) result.push({ text: text.join(' '), timestamp });
     }
-    return lines.join('\n');
+    return result;
+  }
+
+  function linesToPlainText(lines) {
+    return lines.map(l => l.text).join('\n');
+  }
+
+  // ── Render gist-style viewer ────────────────────────────────
+  function renderViewer(lines) {
+    outputText.innerHTML = '';
+    const padLen = String(lines.length).length;
+    const f = files.find(x => x.id === activeId);
+    const bookmarks = f ? f.bookmarks : new Set();
+
+    lines.forEach((line, i) => {
+      const row = document.createElement('div');
+      row.className = 'gist-row' + (bookmarks.has(i) ? ' bookmarked' : '');
+      row.dataset.idx = i;
+
+      // Bookmark icon (before line number)
+      const bm = document.createElement('span');
+      bm.className = 'gist-bookmark';
+      bm.innerHTML = `<svg viewBox="0 0 10 13" xmlns="http://www.w3.org/2000/svg"><path d="M1 1h8v11l-4-3-4 3V1z"/></svg>`;
+
+      const num = document.createElement('span');
+      num.className = 'gist-num';
+      num.textContent = String(i + 1).padStart(padLen, ' ');
+
+      const txt = document.createElement('span');
+      txt.className = 'gist-text';
+      txt.textContent = line.text;
+
+      row.appendChild(bm);
+      row.appendChild(num);
+      row.appendChild(txt);
+
+      if (line.timestamp) {
+        const ts = document.createElement('span');
+        ts.className = 'gist-ts';
+        ts.textContent = line.timestamp;
+        row.appendChild(ts);
+      }
+
+      row.addEventListener('click', () => toggleBookmark(i, row));
+      outputText.appendChild(row);
+    });
+  }
+
+  // ── Toggle bookmark ──────────────────────────────────────────
+  function toggleBookmark(idx, row) {
+    const f = files.find(x => x.id === activeId);
+    if (!f) return;
+    if (f.bookmarks.has(idx)) {
+      f.bookmarks.delete(idx);
+      row.classList.remove('bookmarked');
+    } else {
+      f.bookmarks.add(idx);
+      row.classList.add('bookmarked');
+    }
   }
 
   // ── Add files ───────────────────────────────────────────────
@@ -49,21 +110,17 @@
       reader.onload = (e) => {
         const id = ++idCounter;
         const baseName = file.name.replace(/\.srt$/i, '');
-        const text = parseSRT(e.target.result);
-        files.push({ id, name: file.name, baseName, text });
+        const lines = parseSRT(e.target.result);
+        files.push({ id, name: file.name, baseName, lines, bookmarks: new Set() });
         renderSidebar();
-        if (firstNew === null) {
-          firstNew = id;
-          setActive(id);
-        }
+        if (firstNew === null) { firstNew = id; setActive(id); }
       };
       reader.readAsText(file, 'UTF-8');
     }
   }
 
-  // ── Sidebar rendering ───────────────────────────────────────
+  // ── Sidebar ─────────────────────────────────────────────────
   function renderSidebar() {
-    // Clear
     fileList.innerHTML = '';
     if (files.length === 0) {
       fileList.appendChild(emptyState);
@@ -75,11 +132,11 @@
     fileCountBadge.classList.add('has-files');
 
     for (const f of files) {
-      const li = document.createElement('li');
+      const li   = document.createElement('li');
       li.className = 'file-item' + (f.id === activeId ? ' active' : '');
       li.dataset.id = f.id;
 
-      const dot = document.createElement('span');
+      const dot  = document.createElement('span');
       dot.className = 'file-item-dot';
 
       const name = document.createElement('span');
@@ -87,14 +144,11 @@
       name.textContent = f.baseName;
       name.title = f.name;
 
-      const del = document.createElement('button');
+      const del  = document.createElement('button');
       del.className = 'file-item-del';
       del.textContent = '✕';
       del.title = 'Remove';
-      del.addEventListener('click', (e) => {
-        e.stopPropagation();
-        removeFile(f.id);
-      });
+      del.addEventListener('click', (e) => { e.stopPropagation(); removeFile(f.id); });
 
       li.appendChild(dot);
       li.appendChild(name);
@@ -104,41 +158,36 @@
     }
   }
 
-  // ── Set active file ─────────────────────────────────────────
+  // ── Set active ───────────────────────────────────────────────
   function setActive(id) {
     activeId = id;
     const f = files.find(x => x.id === id);
     if (!f) return;
 
-    // Update sidebar highlight
     document.querySelectorAll('.file-item').forEach(el => {
       el.classList.toggle('active', Number(el.dataset.id) === id);
     });
 
-    // Show output
     fileName.textContent = f.baseName + '.txt';
-    outputText.textContent = f.text;
+    renderViewer(f.lines);
 
-    const lines = f.text.split('\n').length;
-    lineCount.textContent = `${lines} line${lines !== 1 ? 's' : ''}`;
-    charCount.textContent = `${f.text.length.toLocaleString()} characters`;
+    const total = f.lines.length;
+    lineCount.textContent = `${total} line${total !== 1 ? 's' : ''}`;
+    charCount.textContent = `${linesToPlainText(f.lines).length.toLocaleString()} characters`;
 
     emptyContent.style.display = 'none';
     outputPanel.classList.add('visible');
   }
 
-  // ── Remove file ─────────────────────────────────────────────
+  // ── Remove ───────────────────────────────────────────────────
   function removeFile(id) {
     const idx = files.findIndex(x => x.id === id);
     if (idx === -1) return;
     files.splice(idx, 1);
-
     if (activeId === id) {
-      // Switch to nearest neighbour
       const next = files[idx] || files[idx - 1];
-      if (next) {
-        setActive(next.id);
-      } else {
+      if (next) { setActive(next.id); }
+      else {
         activeId = null;
         outputPanel.classList.remove('visible');
         emptyContent.style.display = '';
@@ -147,47 +196,27 @@
     renderSidebar();
   }
 
-  // ── Drag & drop ─────────────────────────────────────────────
-  dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('drag-over');
-  });
-  dropZone.addEventListener('dragleave', (e) => {
-    if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over');
-  });
-  dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    addFiles(Array.from(e.dataTransfer.files));
-  });
-
-  // Also allow drop anywhere on the page
-  document.addEventListener('dragover', (e) => e.preventDefault());
-  document.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const hasFile = Array.from(e.dataTransfer.files).some(f => f.name.toLowerCase().endsWith('.srt'));
-    if (hasFile) addFiles(Array.from(e.dataTransfer.files));
-  });
-
+  // ── Drag & drop ──────────────────────────────────────────────
+  dropZone.addEventListener('dragover',  (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', (e) => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over'); });
+  dropZone.addEventListener('drop',      (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); addFiles(Array.from(e.dataTransfer.files)); });
+  document.addEventListener('dragover',  (e) => e.preventDefault());
+  document.addEventListener('drop',      (e) => { e.preventDefault(); if (Array.from(e.dataTransfer.files).some(f => f.name.toLowerCase().endsWith('.srt'))) addFiles(Array.from(e.dataTransfer.files)); });
   dropZone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => {
-    addFiles(Array.from(fileInput.files));
-    fileInput.value = '';
-  });
+  fileInput.addEventListener('change', () => { addFiles(Array.from(fileInput.files)); fileInput.value = ''; });
 
-  // ── Actions ─────────────────────────────────────────────────
+  // ── Actions ──────────────────────────────────────────────────
   copyBtn.addEventListener('click', () => {
     const f = files.find(x => x.id === activeId);
-    if (!f) return;
-    navigator.clipboard.writeText(f.text).then(showToast);
+    if (f) navigator.clipboard.writeText(linesToPlainText(f.lines)).then(showToast);
   });
 
   downloadBtn.addEventListener('click', () => {
     const f = files.find(x => x.id === activeId);
     if (!f) return;
-    const blob = new Blob([f.text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const blob = new Blob([linesToPlainText(f.lines)], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
     a.href = url; a.download = f.baseName + '.txt'; a.click();
     URL.revokeObjectURL(url);
   });
@@ -200,6 +229,5 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
   }
 
-  // Init
   renderSidebar();
 })();
