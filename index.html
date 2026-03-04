@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SRT → TXT</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="noise"></div>
+
+  <div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="logo">SRT<span class="accent">→</span>TXT</div>
+
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-inner">
+            <div class="drop-icon">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M32 10v28M21 27l11 11 11-11" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 44v4a4 4 0 004 4h28a4 4 0 004-4v-4" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <p class="drop-title">Drop .srt files here</p>
+            <p class="drop-sub"><label class="file-label" for="fileInput">or browse</label></p>
+            <input type="file" id="fileInput" accept=".srt" multiple hidden />
+          </div>
+        </div>
+      </div>
+
+      <div class="file-list-header">
+        <span>FILES</span>
+        <span id="fileCountBadge" class="badge">0</span>
+      </div>
+      <ul class="file-list" id="fileList">
+        <li class="file-list-empty" id="emptyState">No files yet</li>
+      </ul>
+    </aside>
+
+    <!-- MAIN VIEWER -->
+    <div class="content">
+      <div class="empty-content" id="emptyContent">
+        <div class="empty-icon">
+          <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="16" y="12" width="48" height="56" rx="4" stroke="currentColor" stroke-width="2"/>
+            <path d="M28 28h24M28 38h24M28 48h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="empty-hint">Drop .srt files into the panel on the left<br/>and click a file to view its text</p>
+      </div>
+
+      <div class="output-panel" id="outputPanel">
+        <div class="output-header">
+          <div class="file-info">
+            <span class="file-icon">◈</span>
+            <span id="fileName">output.txt</span>
+          </div>
+          <div class="output-actions">
+            <button class="btn-copy" id="copyBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+              Copy
+            </button>
+            <button class="btn-download" id="downloadBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Download
+            </button>
+          </div>
+        </div>
+        <div class="output-body">
+          <pre id="outputText"></pre>
+        </div>
+        <div class="output-footer">
+          <span id="lineCount"></span>
+          <span id="charCount"></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast">Copied!</div>
+  <script src="index.js"></script>
+</body>
+</html>
