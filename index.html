@@ -10,12 +10,22 @@
 <body>
   <div class="noise"></div>
 
+  <!-- Overlay for mobile sidebar -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
   <div class="app">
 
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-top">
-        <div class="logo">SRT<span class="accent">→</span>TXT</div>
+        <div class="sidebar-header-row">
+          <div class="logo">SRT<span class="accent">→</span>TXT</div>
+          <button class="btn-sidebar-close" id="sidebarClose" aria-label="Close sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
 
         <div class="drop-zone" id="dropZone">
           <div class="drop-inner">
@@ -43,6 +53,32 @@
 
     <!-- MAIN VIEWER -->
     <div class="content">
+      <!-- Top bar -->
+      <div class="topbar">
+        <button class="btn-menu" id="menuToggle" aria-label="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <span class="topbar-title" id="topbarTitle">SRT<span class="accent">→</span>TXT</span>
+        <div class="topbar-actions" id="topbarActions">
+          <button class="btn-copy" id="copyBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+            </svg>
+            <span class="btn-label">Copy</span>
+          </button>
+          <button class="btn-download" id="downloadBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span class="btn-label">Download</span>
+          </button>
+        </div>
+      </div>
+
       <div class="empty-content" id="emptyContent">
         <div class="empty-icon">
           <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -50,36 +86,19 @@
             <path d="M28 28h24M28 38h24M28 48h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </div>
-        <p class="empty-hint">Drop .srt files into the panel on the left<br/>and click a file to view its text</p>
+        <p class="empty-hint">Open the sidebar to drop .srt files<br/>and click a file to view its text</p>
       </div>
 
       <div class="output-panel" id="outputPanel">
-        <div class="output-header">
-          <div class="file-info">
-            <span class="file-icon">◈</span>
-            <span id="fileName">output.txt</span>
-          </div>
-          <div class="output-actions">
-            <button class="btn-copy" id="copyBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-              </svg>
-              Copy
-            </button>
-            <button class="btn-download" id="downloadBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              Download
-            </button>
-          </div>
+        <div class="output-meta">
+          <span id="fileName">output.txt</span>
+          <span class="output-meta-sep">·</span>
+          <span id="lineCount"></span>
+          <span class="output-meta-sep">·</span>
+          <span id="charCount"></span>
         </div>
         <div class="output-body">
           <pre id="outputText"></pre>
-        </div>
-        <div class="output-footer">
-          <span id="lineCount"></span>
-          <span id="charCount"></span>
         </div>
       </div>
     </div>

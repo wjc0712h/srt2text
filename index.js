@@ -13,13 +13,56 @@
   const copyBtn        = document.getElementById('copyBtn');
   const downloadBtn    = document.getElementById('downloadBtn');
   const toast          = document.getElementById('toast');
+  const sidebar        = document.getElementById('sidebar');
+  const menuToggle     = document.getElementById('menuToggle');
+  const sidebarClose   = document.getElementById('sidebarClose');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+  const topbarTitle    = document.getElementById('topbarTitle');
 
-  // State: files hold parsed lines [{text, timestamp}]
-  const files = [];
+  const isMobile = () => window.innerWidth <= 640;
+
+  // ── Sidebar toggle ───────────────────────────────────────────
+  function openSidebar() {
+    if (isMobile()) {
+      sidebar.classList.add('open');
+      sidebarOverlay.classList.add('visible');
+    } else {
+      sidebar.classList.remove('collapsed');
+    }
+  }
+
+  function closeSidebar() {
+    if (isMobile()) {
+      sidebar.classList.remove('open');
+      sidebarOverlay.classList.remove('visible');
+    } else {
+      sidebar.classList.add('collapsed');
+    }
+  }
+
+  function toggleSidebar() {
+    if (isMobile()) {
+      sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+    } else {
+      sidebar.classList.contains('collapsed') ? openSidebar() : closeSidebar();
+    }
+  }
+
+  menuToggle.addEventListener('click', toggleSidebar);
+  sidebarClose.addEventListener('click', closeSidebar);
+  sidebarOverlay.addEventListener('click', closeSidebar);
+
+  // Close sidebar on mobile when a file is selected
+  function closeSidebarOnMobile() {
+    if (isMobile()) closeSidebar();
+  }
+
+  // ── State ────────────────────────────────────────────────────
+  const files = []; // { id, name, baseName, lines, bookmarks }
   let activeId  = null;
   let idCounter = 0;
 
-  // ── SRT Parser ──────────────────────────────────────────────
+  // ── SRT Parser ───────────────────────────────────────────────
   function parseSRT(raw) {
     const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     const blocks = normalized.split(/\n{2,}/);
@@ -47,7 +90,7 @@
     return lines.map(l => l.text).join('\n');
   }
 
-  // ── Render gist-style viewer ────────────────────────────────
+  // ── Gist viewer ──────────────────────────────────────────────
   function renderViewer(lines) {
     outputText.innerHTML = '';
     const padLen = String(lines.length).length;
@@ -59,7 +102,6 @@
       row.className = 'gist-row' + (bookmarks.has(i) ? ' bookmarked' : '');
       row.dataset.idx = i;
 
-      // Bookmark icon (before line number)
       const bm = document.createElement('span');
       bm.className = 'gist-bookmark';
       bm.innerHTML = `<svg viewBox="0 0 10 13" xmlns="http://www.w3.org/2000/svg"><path d="M1 1h8v11l-4-3-4 3V1z"/></svg>`;
@@ -88,7 +130,6 @@
     });
   }
 
-  // ── Toggle bookmark ──────────────────────────────────────────
   function toggleBookmark(idx, row) {
     const f = files.find(x => x.id === activeId);
     if (!f) return;
@@ -101,7 +142,7 @@
     }
   }
 
-  // ── Add files ───────────────────────────────────────────────
+  // ── Add files ────────────────────────────────────────────────
   function addFiles(fileObjs) {
     let firstNew = null;
     for (const file of fileObjs) {
@@ -119,7 +160,7 @@
     }
   }
 
-  // ── Sidebar ─────────────────────────────────────────────────
+  // ── Sidebar ──────────────────────────────────────────────────
   function renderSidebar() {
     fileList.innerHTML = '';
     if (files.length === 0) {
@@ -153,7 +194,7 @@
       li.appendChild(dot);
       li.appendChild(name);
       li.appendChild(del);
-      li.addEventListener('click', () => setActive(f.id));
+      li.addEventListener('click', () => { setActive(f.id); closeSidebarOnMobile(); });
       fileList.appendChild(li);
     }
   }
@@ -169,11 +210,12 @@
     });
 
     fileName.textContent = f.baseName + '.txt';
+    topbarTitle.innerHTML = f.baseName + '<span class="accent">.txt</span>';
     renderViewer(f.lines);
 
     const total = f.lines.length;
     lineCount.textContent = `${total} line${total !== 1 ? 's' : ''}`;
-    charCount.textContent = `${linesToPlainText(f.lines).length.toLocaleString()} characters`;
+    charCount.textContent = `${linesToPlainText(f.lines).length.toLocaleString()} chars`;
 
     emptyContent.style.display = 'none';
     outputPanel.classList.add('visible');
@@ -191,6 +233,7 @@
         activeId = null;
         outputPanel.classList.remove('visible');
         emptyContent.style.display = '';
+        topbarTitle.innerHTML = 'SRT<span class="accent">→</span>TXT';
       }
     }
     renderSidebar();
@@ -201,7 +244,11 @@
   dropZone.addEventListener('dragleave', (e) => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over'); });
   dropZone.addEventListener('drop',      (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); addFiles(Array.from(e.dataTransfer.files)); });
   document.addEventListener('dragover',  (e) => e.preventDefault());
-  document.addEventListener('drop',      (e) => { e.preventDefault(); if (Array.from(e.dataTransfer.files).some(f => f.name.toLowerCase().endsWith('.srt'))) addFiles(Array.from(e.dataTransfer.files)); });
+  document.addEventListener('drop',      (e) => {
+    e.preventDefault();
+    if (Array.from(e.dataTransfer.files).some(f => f.name.toLowerCase().endsWith('.srt')))
+      addFiles(Array.from(e.dataTransfer.files));
+  });
   dropZone.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => { addFiles(Array.from(fileInput.files)); fileInput.value = ''; });
 
